@@ -1,10 +1,12 @@
-<?php namespace Gitlab\Model;
+<?php
+
+declare(strict_types=1);
+
+namespace Gitlab\Model;
 
 use Gitlab\Client;
 
 /**
- * Class Session
- *
  * @property-read int $id
  * @property-read string $email
  * @property-read string $name
@@ -15,31 +17,34 @@ use Gitlab\Client;
 class Session extends AbstractModel
 {
     /**
-     * @var array
+     * @var string[]
      */
-    protected static $properties = array(
+    protected static $properties = [
         'id',
         'email',
         'name',
         'private_token',
         'created_at',
-        'blocked'
-    );
+        'blocked',
+    ];
 
     /**
      * @param Client $client
      * @param array  $data
+     *
      * @return Session
      */
     public static function fromArray(Client $client, array $data)
     {
-        $session = new static($client);
+        $session = new self($client);
 
         return $session->hydrate($data);
     }
 
     /**
-     * @param Client $client
+     * @param Client|null $client
+     *
+     * @return void
      */
     public function __construct(Client $client = null)
     {
@@ -51,7 +56,7 @@ class Session extends AbstractModel
      */
     public function me()
     {
-        $data = $this->api('users')->show();
+        $data = $this->client->users()->user();
 
         return User::fromArray($this->getClient(), $data);
     }
@@ -59,11 +64,12 @@ class Session extends AbstractModel
     /**
      * @param string $email
      * @param string $password
-     * @return $this
+     *
+     * @return Session
      */
     public function login($email, $password)
     {
-        $data = $this->api('users')->session($email, $password);
+        $data = $this->client->users()->session($email, $password);
 
         return $this->hydrate($data);
     }

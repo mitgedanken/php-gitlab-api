@@ -1,10 +1,12 @@
-<?php namespace Gitlab\Model;
+<?php
+
+declare(strict_types=1);
+
+namespace Gitlab\Model;
 
 use Gitlab\Client;
 
 /**
- * Class Hook
- *
  * @property-read int $id
  * @property-read string $url
  * @property-read string $created_at
@@ -12,22 +14,23 @@ use Gitlab\Client;
 class Hook extends AbstractModel
 {
     /**
-     * @var array
+     * @var string[]
      */
-    protected static $properties = array(
+    protected static $properties = [
         'id',
         'url',
-        'created_at'
-    );
+        'created_at',
+    ];
 
     /**
      * @param Client $client
      * @param array  $data
+     *
      * @return Hook
      */
     public static function fromArray(Client $client, array $data)
     {
-        $hook = new static($data['id'], $client);
+        $hook = new self($data['id'], $client);
 
         return $hook->hydrate($data);
     }
@@ -35,18 +38,21 @@ class Hook extends AbstractModel
     /**
      * @param Client $client
      * @param string $url
+     *
      * @return Hook
      */
     public static function create(Client $client, $url)
     {
-        $data = $client->api('system_hooks')->create($url);
+        $data = $client->systemHooks()->create($url);
 
-        return static::fromArray($client, $data);
+        return self::fromArray($client, $data);
     }
 
     /**
-     * @param int $id
-     * @param Client $client
+     * @param int         $id
+     * @param Client|null $client
+     *
+     * @return void
      */
     public function __construct($id, Client $client = null)
     {
@@ -59,7 +65,7 @@ class Hook extends AbstractModel
      */
     public function test()
     {
-        $this->api('system_hooks')->test($this->id);
+        $this->client->systemHooks()->test($this->id);
 
         return true;
     }
@@ -69,7 +75,7 @@ class Hook extends AbstractModel
      */
     public function delete()
     {
-        $this->api('system_hooks')->remove($this->id);
+        $this->client->systemHooks()->remove($this->id);
 
         return true;
     }

@@ -1,20 +1,23 @@
-<?php namespace Gitlab\Model;
+<?php
+
+declare(strict_types=1);
+
+namespace Gitlab\Model;
 
 use Gitlab\Client;
 use Gitlab\Exception\RuntimeException;
-use Gitlab\Api\AbstractApi;
 
 abstract class AbstractModel
 {
     /**
-     * @var array
+     * @var string[]
      */
     protected static $properties;
 
     /**
-     * @var array
+     * @var array<string,mixed>
      */
-    protected $data = array();
+    protected $data = [];
 
     /**
      * @var Client
@@ -30,7 +33,8 @@ abstract class AbstractModel
     }
 
     /**
-     * @param Client $client
+     * @param Client|null $client
+     *
      * @return $this
      */
     public function setClient(Client $client = null)
@@ -43,24 +47,14 @@ abstract class AbstractModel
     }
 
     /**
-     * @param string $api
-     * @return AbstractApi|mixed
-     */
-    public function api($api)
-    {
-        return $this->getClient()->api($api);
-    }
-
-    /**
-     * @param array $data
+     * @param array<string,mixed> $data
+     *
      * @return $this
      */
-    protected function hydrate(array $data = array())
+    protected function hydrate(array $data = [])
     {
-        if (!empty($data)) {
-            foreach ($data as $field => $value) {
-                $this->setData($field, $value);
-            }
+        foreach ($data as $field => $value) {
+            $this->setData($field, $value);
         }
 
         return $this;
@@ -68,12 +62,13 @@ abstract class AbstractModel
 
     /**
      * @param string $field
-     * @param mixed $value
+     * @param mixed  $value
+     *
      * @return $this
      */
     protected function setData($field, $value)
     {
-        if (in_array($field, static::$properties)) {
+        if (in_array($field, static::$properties, true)) {
             $this->data[$field] = $value;
         }
 
@@ -90,7 +85,10 @@ abstract class AbstractModel
 
     /**
      * @param string $property
-     * @param mixed $value
+     * @param mixed  $value
+     *
+     * @return void
+     *
      * @throws RuntimeException
      */
     public function __set($property, $value)
@@ -100,15 +98,15 @@ abstract class AbstractModel
 
     /**
      * @param string $property
+     *
      * @return mixed
+     *
+     * @throws RuntimeException
      */
     public function __get($property)
     {
-        if (!in_array($property, static::$properties)) {
-            throw new RuntimeException(sprintf(
-                'Property "%s" does not exist for %s object',
-                $property, get_called_class()
-            ));
+        if (!in_array($property, static::$properties, true)) {
+            throw new RuntimeException(sprintf('Property "%s" does not exist for %s object', $property, get_called_class()));
         }
 
         if (isset($this->data[$property])) {
@@ -120,6 +118,7 @@ abstract class AbstractModel
 
     /**
      * @param string $property
+     *
      * @return bool
      */
     public function __isset($property)

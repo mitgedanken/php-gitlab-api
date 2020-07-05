@@ -1,16 +1,20 @@
-<?php namespace Gitlab\Tests\Api;
+<?php
 
-class SystemHooksTest extends ApiTestCase
+declare(strict_types=1);
+
+namespace Gitlab\Tests\Api;
+
+class SystemHooksTest extends TestCase
 {
     /**
      * @test
      */
     public function shouldGetAllHooks()
     {
-        $expectedArray = array(
-            array('id' => 1, 'url' => 'http://www.example.com'),
-            array('id' => 2, 'url' => 'http://www.example.org'),
-        );
+        $expectedArray = [
+            ['id' => 1, 'url' => 'http://www.example.com'],
+            ['id' => 2, 'url' => 'http://www.example.org'],
+        ];
 
         $api = $this->getApiMock();
         $api->expects($this->once())
@@ -27,12 +31,12 @@ class SystemHooksTest extends ApiTestCase
      */
     public function shouldCreateHook()
     {
-        $expectedArray = array('id' => 3, 'url' => 'http://www.example.net');
+        $expectedArray = ['id' => 3, 'url' => 'http://www.example.net'];
 
         $api = $this->getApiMock();
         $api->expects($this->once())
             ->method('post')
-            ->with('hooks', array('url' => 'http://www.example.net'))
+            ->with('hooks', ['url' => 'http://www.example.net'])
             ->will($this->returnValue($expectedArray))
         ;
 

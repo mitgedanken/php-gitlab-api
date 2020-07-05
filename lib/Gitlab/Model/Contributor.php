@@ -1,10 +1,12 @@
-<?php namespace Gitlab\Model;
+<?php
+
+declare(strict_types=1);
+
+namespace Gitlab\Model;
 
 use Gitlab\Client;
 
 /**
- * Class Contributor
- *
  * @property-read string $name
  * @property-read string $email
  * @property-read int $commits
@@ -15,33 +17,36 @@ use Gitlab\Client;
 class Contributor extends AbstractModel
 {
     /**
-     * @var array
+     * @var string[]
      */
-    protected static $properties = array(
+    protected static $properties = [
         'name',
         'email',
         'commits',
         'additions',
         'deletions',
-        'project'
-    );
+        'project',
+    ];
 
     /**
-     * @param Client $client
+     * @param Client  $client
      * @param Project $project
-     * @param array $data
+     * @param array   $data
+     *
      * @return Contributor
      */
     public static function fromArray(Client $client, Project $project, array $data)
     {
-        $contributor = new static($project, $client);
+        $contributor = new self($project, $client);
 
         return $contributor->hydrate($data);
     }
 
     /**
-     * @param Project $project
-     * @param Client $client
+     * @param Project     $project
+     * @param Client|null $client
+     *
+     * @return void
      */
     public function __construct(Project $project, Client $client = null)
     {

@@ -1,284 +1,352 @@
-<?php namespace Gitlab;
+<?php
 
-use Buzz\Client\Curl;
-use Buzz\Client\ClientInterface;
+declare(strict_types=1);
 
-use Gitlab\Api\AbstractApi;
-use Gitlab\Exception\InvalidArgumentException;
-use Gitlab\HttpClient\HttpClient;
-use Gitlab\HttpClient\HttpClientInterface;
-use Gitlab\HttpClient\Listener\AuthListener;
-use Gitlab\HttpClient\Listener\PaginationListener;
+namespace Gitlab;
+
+use Gitlab\HttpClient\Builder;
+use Gitlab\HttpClient\Plugin\ApiVersion;
+use Gitlab\HttpClient\Plugin\Authentication;
+use Gitlab\HttpClient\Plugin\GitlabExceptionThrower;
+use Gitlab\HttpClient\Plugin\History;
+use Http\Client\Common\HttpMethodsClientInterface;
+use Http\Client\Common\Plugin\AddHostPlugin;
+use Http\Client\Common\Plugin\HeaderDefaultsPlugin;
+use Http\Client\Common\Plugin\HistoryPlugin;
+use Http\Client\Common\Plugin\RedirectPlugin;
+use Http\Discovery\Psr17FactoryDiscovery;
+use Psr\Http\Client\ClientInterface;
+use Psr\Http\Message\ResponseInterface;
 
 /**
- * Simple API wrapper for Gitlab
+ * Simple API wrapper for Gitlab.
  *
  * @author Matt Humphrey <matt@m4tt.co>
- *
- * @property-read \Gitlab\Api\Groups $groups
- * @property-read \Gitlab\Api\Issues $issues
- * @property-read \Gitlab\Api\MergeRequests $merge_requests
- * @property-read \Gitlab\Api\MergeRequests $mr
- * @property-read \Gitlab\Api\Milestones $milestones
- * @property-read \Gitlab\Api\Milestones $ms
- * @property-read \Gitlab\Api\ProjectNamespaces $namespaces
- * @property-read \Gitlab\Api\ProjectNamespaces $ns
- * @property-read \Gitlab\Api\Projects $projects
- * @property-read \Gitlab\Api\Repositories $repositories
- * @property-read \Gitlab\Api\Repositories $repo
- * @property-read \Gitlab\Api\Snippets $snippets
- * @property-read \Gitlab\Api\SystemHooks $hooks
- * @property-read \Gitlab\Api\SystemHooks $system_hooks
- * @property-read \Gitlab\Api\Users $users
  */
 class Client
 {
     /**
-     * Constant for authentication method. Indicates the default, but deprecated
-     * login with username and token in URL.
-     */
-    const AUTH_URL_TOKEN = 'url_token';
-
-    /**
-     * Constant for authentication method. Indicates the new login method with
-     * with username and token via HTTP Authentication.
-     */
-    const AUTH_HTTP_TOKEN = 'http_token';
-
-    /**
-     * Constant for authentication method. Indicates the OAuth method with a key
-     * obtain using Gitlab's OAuth provider.
-     */
-    const AUTH_OAUTH_TOKEN = 'oauth_token';
-
-    /**
-     * @var array
-     */
-    private $options = array(
-        'user_agent'  => 'php-gitlab-api (http://github.com/m4tthumphrey/php-gitlab-api)',
-        'timeout'     => 60
-    );
-
-    private $baseUrl;
-
-    /**
-     * The Buzz instance used to communicate with Gitlab
+     * The private token authentication method.
      *
-     * @var HttpClient
+     * @var string
      */
-    private $httpClient;
+    public const AUTH_HTTP_TOKEN = 'http_token';
 
     /**
-     * Instantiate a new Gitlab client
+     * The OAuth 2 token authentication method.
      *
-     * @param string               $baseUrl
-     * @param null|ClientInterface $httpClient Buzz client
+     * @var string
      */
-    public function __construct($baseUrl, ClientInterface $httpClient = null)
+    public const AUTH_OAUTH_TOKEN = 'oauth_token';
+
+    /**
+     * The HTTP client builder.
+     *
+     * @var Builder
+     */
+    private $httpClientBuilder;
+
+    /**
+     * The response history plugin.
+     *
+     * @var History
+     */
+    private $responseHistory;
+
+    /**
+     * Instantiate a new Gitlab client.
+     *
+     * @param Builder|null $httpClientBuilder
+     *
+     * @return void
+     */
+    public function __construct(Builder $httpClientBuilder = null)
     {
-        $httpClient = $httpClient ?: new Curl();
-        $httpClient->setTimeout($this->options['timeout']);
-        $httpClient->setVerifyPeer(false);
+        $this->httpClientBuilder = $builder = $httpClientBuilder ?? new Builder();
+        $this->responseHistory = new History();
 
-        $this->baseUrl     = $baseUrl;
-        $this->httpClient  = new HttpClient($this->baseUrl, $this->options, $httpClient);
+        $builder->addPlugin(new GitlabExceptionThrower());
+        $builder->addPlugin(new HistoryPlugin($this->responseHistory));
+        $builder->addPlugin(new HeaderDefaultsPlugin([
+            'User-Agent' => 'php-gitlab-api (http://github.com/m4tthumphrey/php-gitlab-api)',
+        ]));
+        $builder->addPlugin(new RedirectPlugin());
+        $builder->addPlugin(new ApiVersion());
 
-        /**
-         * a Pagination listener on Response
-         */
-        $this->httpClient->addListener(
-            new PaginationListener()
-        );
+        $this->setUrl('https://gitlab.com');
     }
 
     /**
-     * @param string $name
+     * Create a Gitlab\Client using an HTTP client.
      *
-     * @return AbstractApi|mixed
-     * @throws InvalidArgumentException
+     * @param ClientInterface $httpClient
+     *
+     * @return Client
      */
-    public function api($name)
+    public static function createWithHttpClient(ClientInterface $httpClient)
     {
-        switch ($name) {
+        $builder = new Builder($httpClient);
 
-            case 'deploy_keys':
-                $api = new Api\DeployKeys($this);
-                break;
-
-            case 'groups':
-                $api = new Api\Groups($this);
-                break;
-
-            case 'issues':
-                $api = new Api\Issues($this);
-                break;
-
-            case 'mr':
-            case 'merge_requests':
-                $api = new Api\MergeRequests($this);
-                break;
-
-            case 'milestones':
-            case 'ms':
-                $api = new Api\Milestones($this);
-                break;
-
-            case 'namespaces':
-            case 'ns':
-                $api = new Api\ProjectNamespaces($this);
-                break;
-
-            case 'projects':
-                $api = new Api\Projects($this);
-                break;
-
-            case 'repo':
-            case 'repositories':
-                $api = new Api\Repositories($this);
-                break;
-
-            case 'snippets':
-                $api = new Api\Snippets($this);
-                break;
-
-            case 'hooks':
-            case 'system_hooks':
-                $api = new Api\SystemHooks($this);
-                break;
-
-            case 'users':
-                $api = new Api\Users($this);
-                break;
-
-            default:
-                throw new InvalidArgumentException('Invalid endpoint: "'.$name.'"');
-
-        }
-
-        return $api;
+        return new self($builder);
     }
 
     /**
-     * Authenticate a user for all next requests
+     * @return Api\DeployKeys
+     */
+    public function deployKeys()
+    {
+        return new Api\DeployKeys($this);
+    }
+
+    /**
+     * @return Api\Deployments
+     */
+    public function deployments()
+    {
+        return new Api\Deployments($this);
+    }
+
+    /**
+     * @return Api\Environments
+     */
+    public function environments()
+    {
+        return new Api\Environments($this);
+    }
+
+    /**
+     * @return Api\Groups
+     */
+    public function groups()
+    {
+        return new Api\Groups($this);
+    }
+
+    /**
+     * @return Api\GroupsBoards
+     */
+    public function groupsBoards()
+    {
+        return new Api\GroupsBoards($this);
+    }
+
+    /**
+     * @return Api\GroupsMilestones
+     */
+    public function groupsMilestones()
+    {
+        return new Api\GroupsMilestones($this);
+    }
+
+    /**
+     * @return Api\IssueBoards
+     */
+    public function issueBoards()
+    {
+        return new Api\IssueBoards($this);
+    }
+
+    /**
+     * @return Api\IssueLinks
+     */
+    public function issueLinks()
+    {
+        return new Api\IssueLinks($this);
+    }
+
+    /**
+     * @return Api\Issues
+     */
+    public function issues()
+    {
+        return new Api\Issues($this);
+    }
+
+    /**
+     * @return Api\IssuesStatistics
+     */
+    public function issuesStatistics()
+    {
+        return new Api\IssuesStatistics($this);
+    }
+
+    /**
+     * @return Api\Jobs
+     */
+    public function jobs()
+    {
+        return new Api\Jobs($this);
+    }
+
+    /**
+     * @return Api\Keys
+     */
+    public function keys()
+    {
+        return new Api\Keys($this);
+    }
+
+    /**
+     * @return Api\MergeRequests
+     */
+    public function mergeRequests()
+    {
+        return new Api\MergeRequests($this);
+    }
+
+    /**
+     * @return Api\Milestones
+     */
+    public function milestones()
+    {
+        return new Api\Milestones($this);
+    }
+
+    /**
+     * @return Api\ProjectNamespaces
+     */
+    public function namespaces()
+    {
+        return new Api\ProjectNamespaces($this);
+    }
+
+    /**
+     * @return Api\Projects
+     */
+    public function projects()
+    {
+        return new Api\Projects($this);
+    }
+
+    /**
+     * @return Api\Repositories
+     */
+    public function repositories()
+    {
+        return new Api\Repositories($this);
+    }
+
+    /**
+     * @return Api\RepositoryFiles
+     */
+    public function repositoryFiles()
+    {
+        return new Api\RepositoryFiles($this);
+    }
+
+    /**
+     * @return Api\Schedules
+     */
+    public function schedules()
+    {
+        return new Api\Schedules($this);
+    }
+
+    /**
+     * @return Api\Snippets
+     */
+    public function snippets()
+    {
+        return new Api\Snippets($this);
+    }
+
+    /**
+     * @return Api\SystemHooks
+     */
+    public function systemHooks()
+    {
+        return new Api\SystemHooks($this);
+    }
+
+    /**
+     * @return Api\Users
+     */
+    public function users()
+    {
+        return new Api\Users($this);
+    }
+
+    /**
+     * @return Api\Tags
+     */
+    public function tags()
+    {
+        return new Api\Tags($this);
+    }
+
+    /**
+     * @return Api\Version
+     */
+    public function version()
+    {
+        return new Api\Version($this);
+    }
+
+    /**
+     * @return Api\Wiki
+     */
+    public function wiki()
+    {
+        return new Api\Wiki($this);
+    }
+
+    /**
+     * Authenticate a user for all next requests.
      *
-     * @param string $token Gitlab private token
-     * @param string $authMethod One of the AUTH_* class constants
-     * @param string $sudo
+     * @param string      $token      Gitlab private token
+     * @param string      $authMethod One of the AUTH_* class constants
+     * @param string|null $sudo
+     *
      * @return $this
      */
-    public function authenticate($token, $authMethod = self::AUTH_URL_TOKEN, $sudo = null)
+    public function authenticate(string $token, string $authMethod, string $sudo = null)
     {
-        $this->httpClient->addListener(
-            new AuthListener(
-                $authMethod,
-                $token,
-                $sudo
-            )
-        );
-
-        return $this;
-    }
-
-    /**
-     * @return HttpClient
-     */
-    public function getHttpClient()
-    {
-        return $this->httpClient;
-    }
-
-    /**
-     * @param HttpClientInterface $httpClient
-     * @return $this
-     */
-    public function setHttpClient(HttpClientInterface $httpClient)
-    {
-        $this->httpClient = $httpClient;
+        $this->getHttpClientBuilder()->removePlugin(Authentication::class);
+        $this->getHttpClientBuilder()->addPlugin(new Authentication($authMethod, $token, $sudo));
 
         return $this;
     }
 
     /**
      * @param string $url
-     * @return $this
-     */
-    public function setBaseUrl($url)
-    {
-        $this->baseUrl = $url;
-
-        return $this;
-    }
-
-    /**
-     * @return string
-     */
-    public function getBaseUrl()
-    {
-        return $this->baseUrl;
-    }
-
-    /**
-     * Clears used headers
      *
      * @return $this
      */
-    public function clearHeaders()
+    public function setUrl(string $url)
     {
-        $this->httpClient->clearHeaders();
+        $this->getHttpClientBuilder()->removePlugin(AddHostPlugin::class);
+        $this->getHttpClientBuilder()->addPlugin(new AddHostPlugin(Psr17FactoryDiscovery::findUrlFactory()->createUri($url)));
 
         return $this;
     }
 
     /**
-     * @param array $headers
-     * @return $this
-     */
-    public function setHeaders(array $headers)
-    {
-        $this->httpClient->setHeaders($headers);
-
-        return $this;
-    }
-
-    /**
-     * @param string $name
+     * Get the last response.
      *
-     * @return mixed
+     * @return ResponseInterface|null
+     */
+    public function getLastResponse()
+    {
+        return $this->responseHistory->getLastResponse();
+    }
+
+    /**
+     * Get the HTTP client.
      *
-     * @throws InvalidArgumentException
+     * @return HttpMethodsClientInterface
      */
-    public function getOption($name)
+    public function getHttpClient()
     {
-        if (!array_key_exists($name, $this->options)) {
-            throw new InvalidArgumentException(sprintf('Undefined option called: "%s"', $name));
-        }
-
-        return $this->options[$name];
+        return $this->getHttpClientBuilder()->getHttpClient();
     }
 
     /**
-     * @param string $name
-     * @param mixed $value
-     * @throws InvalidArgumentException
-     * @return $this
+     * Get the HTTP client builder.
+     *
+     * @return Builder
      */
-    public function setOption($name, $value)
+    protected function getHttpClientBuilder()
     {
-        if (!array_key_exists($name, $this->options)) {
-            throw new InvalidArgumentException(sprintf('Undefined option called: "%s"', $name));
-        }
-
-        $this->options[$name] = $value;
-
-        return $this;
-    }
-
-    /**
-     * @param string $api
-     * @return AbstractApi
-     */
-    public function __get($api)
-    {
-        return $this->api($api);
+        return $this->httpClientBuilder;
     }
 }

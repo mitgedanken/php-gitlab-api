@@ -1,66 +1,46 @@
-<?php namespace Gitlab\Tests\Api;
+<?php
 
-use Gitlab\Api\AbstractApi;
+declare(strict_types=1);
 
-class ProjectNamespacesTest extends ApiTestCase
+namespace Gitlab\Tests\Api;
+
+class ProjectNamespacesTest extends TestCase
 {
     /**
      * @test
      */
     public function shouldGetAllNamespaces()
     {
-        $expectedArray = array(
-            array('id' => 1, 'name' => 'bespokes'),
-            array('id' => 2, 'name' => 'internal')
-        );
+        $expectedArray = [
+            ['id' => 1, 'name' => 'bespokes'],
+            ['id' => 2, 'name' => 'internal'],
+        ];
 
         $api = $this->getApiMock();
         $api->expects($this->once())
             ->method('get')
-            ->with('namespaces', array('page' => 1, 'per_page' => 10))
-            ->will($this->returnValue($expectedArray))
-        ;
-
-        $this->assertEquals($expectedArray, $api->all(1, 10));
-    }
-
-    /**
-     * @test
-     */
-    public function shouldNotNeedPaginationWhenGettingNamespaces()
-    {
-        $expectedArray = array(
-            array('id' => 1, 'name' => 'bespokes'),
-            array('id' => 2, 'name' => 'internal')
-        );
-
-        $api = $this->getApiMock();
-        $api->expects($this->once())
-            ->method('get')
-            ->with('namespaces', array('page' => 1, 'per_page' => AbstractApi::PER_PAGE))
+            ->with('namespaces', [])
             ->will($this->returnValue($expectedArray))
         ;
 
         $this->assertEquals($expectedArray, $api->all());
     }
+
     /**
      * @test
      */
-    public function shouldSearchNamespaces()
+    public function shouldShowNamespace()
     {
-        $expectedArray = array(
-            array('id' => 1, 'name' => 'bespokes'),
-            array('id' => 2, 'name' => 'internal')
-        );
+        $expectedArray = ['id' => 1, 'name' => 'internal'];
 
         $api = $this->getApiMock();
         $api->expects($this->once())
             ->method('get')
-            ->with('namespaces', array('search' => 'term', 'page' => 1, 'per_page' => 10))
+            ->with('namespaces/1')
             ->will($this->returnValue($expectedArray))
         ;
 
-        $this->assertEquals($expectedArray, $api->search('term', 1, 10));
+        $this->assertEquals($expectedArray, $api->show(1));
     }
 
     protected function getApiClass()

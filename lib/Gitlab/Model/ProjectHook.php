@@ -1,27 +1,30 @@
-<?php namespace Gitlab\Model;
+<?php
+
+declare(strict_types=1);
+
+namespace Gitlab\Model;
 
 use Gitlab\Client;
 
 /**
- * Class ProjectHook
- *
  * @property-read int $id
  * @property-read string $url
- * @property-read int $project_id
+ * @property-read int|string $project_id
  * @property-read bool $push_events
  * @property-read bool $issues_events
  * @property-read bool $merge_requests_events
- * @property-read bool $build_events
+ * @property-read bool $job_events
  * @property-read bool $tag_push_events
+ * @property-read bool $pipeline_events
  * @property-read string $created_at
  * @property-read Project $project
  */
 class ProjectHook extends AbstractModel
 {
     /**
-     * @var array
+     * @var string[]
      */
-    protected static $properties = array(
+    protected static $properties = [
         'id',
         'project',
         'url',
@@ -29,28 +32,32 @@ class ProjectHook extends AbstractModel
         'push_events',
         'issues_events',
         'merge_requests_events',
-        'build_events',
+        'job_events',
         'tag_push_events',
-        'created_at'
-    );
+        'pipeline_events',
+        'created_at',
+    ];
 
     /**
      * @param Client  $client
      * @param Project $project
      * @param array   $data
+     *
      * @return ProjectHook
      */
     public static function fromArray(Client $client, Project $project, array $data)
     {
-        $hook = new static($project, $data['id'], $client);
+        $hook = new self($project, $data['id'], $client);
 
         return $hook->hydrate($data);
     }
 
     /**
-     * @param Project $project
-     * @param int $id
-     * @param Client $client
+     * @param Project     $project
+     * @param int         $id
+     * @param Client|null $client
+     *
+     * @return void
      */
     public function __construct(Project $project, $id, Client $client = null)
     {
@@ -64,9 +71,9 @@ class ProjectHook extends AbstractModel
      */
     public function show()
     {
-        $data = $this->api('projects')->hook($this->project->id, $this->id);
+        $data = $this->client->projects()->hook($this->project->id, $this->id);
 
-        return static::fromArray($this->getClient(), $this->project, $data);
+        return self::fromArray($this->getClient(), $this->project, $data);
     }
 
     /**
@@ -74,7 +81,7 @@ class ProjectHook extends AbstractModel
      */
     public function delete()
     {
-        $this->api('projects')->removeHook($this->project->id, $this->id);
+        $this->client->projects()->removeHook($this->project->id, $this->id);
 
         return true;
     }
@@ -89,12 +96,13 @@ class ProjectHook extends AbstractModel
 
     /**
      * @param array $params
+     *
      * @return ProjectHook
      */
     public function update(array $params)
     {
-        $data = $this->api('projects')->updateHook($this->project->id, $this->id, $params);
+        $data = $this->client->projects()->updateHook($this->project->id, $this->id, $params);
 
-        return static::fromArray($this->getClient(), $this->project, $data);
+        return self::fromArray($this->getClient(), $this->project, $data);
     }
 }

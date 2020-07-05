@@ -1,48 +1,55 @@
-<?php namespace Gitlab\Model;
+<?php
+
+declare(strict_types=1);
+
+namespace Gitlab\Model;
 
 use Gitlab\Client;
 
 /**
- * Class Node
- *
  * @property-read string $name
  * @property-read string $type
  * @property-read string $mode
  * @property-read int $id
+ * @property-read string $path
  * @property-read Project $project
  */
 class Node extends AbstractModel
 {
     /**
-     * @var array
+     * @var string[]
      */
-    protected static $properties = array(
+    protected static $properties = [
         'name',
         'type',
         'mode',
         'id',
-        'project'
-    );
+        'path',
+        'project',
+    ];
 
     /**
      * @param Client  $client
      * @param Project $project
      * @param array   $data
+     *
      * @return Node
      */
     public static function fromArray(Client $client, Project $project, array $data)
     {
-        $node = new static($project, $data['id'], $client);
+        $node = new self($project, $data['id'], $client);
 
         return $node->hydrate($data);
     }
 
     /**
-     * @param Project $project
-     * @param int $id
-     * @param Client $client
+     * @param Project     $project
+     * @param int         $id
+     * @param Client|null $client
+     *
+     * @return void
      */
-    public function __construct(Project $project, $id = null, Client $client)
+    public function __construct(Project $project, $id = null, Client $client = null)
     {
         $this->setClient($client);
         $this->setData('project', $project);
