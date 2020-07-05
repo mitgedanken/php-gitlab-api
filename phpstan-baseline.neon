@@ -9,4 +9,3 @@ parameters:
 			message: "#^Offset string does not exist on array\\|null\\.$#"
 			count: 1
 			path: lib/Gitlab/ResultPager.php
-
