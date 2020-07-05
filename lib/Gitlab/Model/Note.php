@@ -1,11 +1,14 @@
-<?php namespace Gitlab\Model;
+<?php
+
+declare(strict_types=1);
+
+namespace Gitlab\Model;
 
 use Gitlab\Client;
 
 /**
- * Class Note
- *
- * @property-read User $author
+ * @property-read int $id
+ * @property-read User|null $author
  * @property-read string $body
  * @property-read string $created_at
  * @property-read string $updated_at
@@ -17,9 +20,9 @@ use Gitlab\Client;
 class Note extends AbstractModel
 {
     /**
-     * @var array
+     * @var string[]
      */
-    protected static $properties = array(
+    protected static $properties = [
         'id',
         'author',
         'body',
@@ -28,18 +31,19 @@ class Note extends AbstractModel
         'parent_type',
         'parent',
         'attachment',
-        'system'
-    );
+        'system',
+    ];
 
     /**
-     * @param Client $client
-     * @param Noteable $type
-     * @param array $data
+     * @param Client  $client
+     * @param Notable $type
+     * @param array   $data
+     *
      * @return mixed
      */
-    public static function fromArray(Client $client, Noteable $type, array $data)
+    public static function fromArray(Client $client, Notable $type, array $data)
     {
-        $comment = new static($type, $client);
+        $comment = new self($type, $client);
 
         if (isset($data['author'])) {
             $data['author'] = User::fromArray($client, $data['author']);
@@ -49,10 +53,12 @@ class Note extends AbstractModel
     }
 
     /**
-     * @param Noteable $type
-     * @param Client $client
+     * @param Notable     $type
+     * @param Client|null $client
+     *
+     * @return void
      */
-    public function __construct(Noteable $type, Client $client = null)
+    public function __construct(Notable $type, Client $client = null)
     {
         $this->setClient($client);
         $this->setData('parent_type', get_class($type));

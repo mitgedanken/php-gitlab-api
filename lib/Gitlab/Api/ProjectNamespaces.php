@@ -1,32 +1,34 @@
-<?php namespace Gitlab\Api;
+<?php
+
+declare(strict_types=1);
+
+namespace Gitlab\Api;
 
 class ProjectNamespaces extends AbstractApi
 {
     /**
-     * @param int $page
-     * @param int $per_page
+     * @param array $parameters {
+     *
+     *     @var string $search Returns a list of namespaces the user is authorized to see based on the search criteria.
+     * }
+     *
      * @return mixed
      */
-    public function all($page = 1, $per_page = self::PER_PAGE)
+    public function all(array $parameters = [])
     {
-        return $this->get('namespaces', array(
-            'page' => $page,
-            'per_page' => $per_page
-        ));
+        $resolver = $this->createOptionsResolver();
+        $resolver->setDefined('search');
+
+        return $this->get('namespaces', $resolver->resolve($parameters));
     }
 
     /**
-     * @param string $terms
-     * @param int $page
-     * @param int $per_page
+     * @param int|string $namespace_id
+     *
      * @return mixed
      */
-    public function search($terms, $page = 1, $per_page = self::PER_PAGE)
+    public function show($namespace_id)
     {
-        return $this->get('namespaces', array(
-            'search' => $terms,
-            'page' => $page,
-            'per_page' => $per_page
-        ));
+        return $this->get('namespaces/'.$this->encodePath($namespace_id));
     }
 }

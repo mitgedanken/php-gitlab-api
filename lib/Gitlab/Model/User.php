@@ -1,10 +1,12 @@
-<?php namespace Gitlab\Model;
+<?php
+
+declare(strict_types=1);
+
+namespace Gitlab\Model;
 
 use Gitlab\Client;
 
 /**
- * Class User
- *
  * @property-read int $id
  * @property-read string $email
  * @property-read string $password
@@ -18,6 +20,7 @@ use Gitlab\Client;
  * @property-read int $theme_id
  * @property-read int $color_scheme_id
  * @property-read bool $blocked
+ * @property-read int|null $project_limit
  * @property-read int $access_level
  * @property-read string $created_at
  * @property-read string $extern_uid
@@ -33,9 +36,9 @@ use Gitlab\Client;
 class User extends AbstractModel
 {
     /**
-     * @var array
+     * @var string[]
      */
-    protected static $properties = array(
+    protected static $properties = [
         'id',
         'email',
         'password',
@@ -60,19 +63,20 @@ class User extends AbstractModel
         'can_create_project',
         'avatar_url',
         'current_sign_in_at',
-        'two_factor_enabled'
-    );
+        'two_factor_enabled',
+    ];
 
     /**
      * @param Client $client
      * @param array  $data
+     *
      * @return User
      */
     public static function fromArray(Client $client, array $data)
     {
         $id = isset($data['id']) ? $data['id'] : 0;
 
-        $user = new static($id, $client);
+        $user = new self($id, $client);
 
         return $user->hydrate($data);
     }
@@ -82,18 +86,21 @@ class User extends AbstractModel
      * @param string $email
      * @param string $password
      * @param array  $params
+     *
      * @return User
      */
-    public static function create(Client $client, $email, $password, array $params = array())
+    public static function create(Client $client, $email, $password, array $params = [])
     {
-        $data = $client->api('users')->create($email, $password, $params);
+        $data = $client->users()->create($email, $password, $params);
 
-        return static::fromArray($client, $data);
+        return self::fromArray($client, $data);
     }
 
     /**
-     * @param int $id
-     * @param Client $client
+     * @param int|null    $id
+     * @param Client|null $client
+     *
+     * @return void
      */
     public function __construct($id = null, Client $client = null)
     {
@@ -106,20 +113,21 @@ class User extends AbstractModel
      */
     public function show()
     {
-        $data = $this->api('users')->show($this->id);
+        $data = $this->client->users()->show($this->id);
 
-        return static::fromArray($this->getClient(), $data);
+        return self::fromArray($this->getClient(), $data);
     }
 
     /**
      * @param array $params
+     *
      * @return User
      */
     public function update(array $params)
     {
-        $data = $this->api('users')->update($this->id, $params);
+        $data = $this->client->users()->update($this->id, $params);
 
-        return static::fromArray($this->getClient(), $data);
+        return self::fromArray($this->getClient(), $data);
     }
 
     /**
@@ -127,7 +135,7 @@ class User extends AbstractModel
      */
     public function remove()
     {
-        $this->api('users')->remove($this->id);
+        $this->client->users()->remove($this->id);
 
         return true;
     }
@@ -137,7 +145,7 @@ class User extends AbstractModel
      */
     public function block()
     {
-        $this->api('users')->block($this->id);
+        $this->client->users()->block($this->id);
 
         return true;
     }
@@ -147,7 +155,7 @@ class User extends AbstractModel
      */
     public function unblock()
     {
-        $this->api('users')->unblock($this->id);
+        $this->client->users()->unblock($this->id);
 
         return true;
     }
@@ -157,9 +165,9 @@ class User extends AbstractModel
      */
     public function keys()
     {
-        $data = $this->api('users')->keys();
+        $data = $this->client->users()->keys();
 
-        $keys = array();
+        $keys = [];
         foreach ($data as $key) {
             $keys[] = Key::fromArray($this->getClient(), $key);
         }
@@ -170,34 +178,38 @@ class User extends AbstractModel
     /**
      * @param string $title
      * @param string $key
+     *
      * @return Key
      */
     public function createKey($title, $key)
     {
-        $data = $this->api('users')->createKey($title, $key);
+        $data = $this->client->users()->createKey($title, $key);
 
         return Key::fromArray($this->getClient(), $data);
     }
 
     /**
+     * @param int    $user_id
      * @param string $title
      * @param string $key
+     *
      * @return Key
      */
     public function createKeyForUser($user_id, $title, $key)
     {
-        $data = $this->api('users')->createKeyForUser($user_id, $title, $key);
+        $data = $this->client->users()->createKeyForUser($user_id, $title, $key);
 
         return Key::fromArray($this->getClient(), $data);
     }
 
     /**
      * @param int $id
+     *
      * @return bool
      */
     public function removeKey($id)
     {
-        $this->api('users')->removeKey($id);
+        $this->client->users()->removeKey($id);
 
         return true;
     }
@@ -205,6 +217,7 @@ class User extends AbstractModel
     /**
      * @param int $group_id
      * @param int $access_level
+     *
      * @return User
      */
     public function addToGroup($group_id, $access_level)
@@ -216,6 +229,7 @@ class User extends AbstractModel
 
     /**
      * @param int $group_id
+     *
      * @return bool
      */
     public function removeFromGroup($group_id)

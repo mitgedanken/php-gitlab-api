@@ -1,11 +1,12 @@
-<?php namespace Gitlab\Exception;
+<?php
+
+declare(strict_types=1);
+
+namespace Gitlab\Exception;
 
 /**
- * ValidationFailedException
- *
- * @author Joseph Bielawski <stloyd@gmail.com>
+ * @author Graham Campbell <graham@alt-three.com>
  */
 class ValidationFailedException extends ErrorException
 {
-
 }

@@ -1,10 +1,12 @@
-<?php namespace Gitlab\Model;
+<?php
+
+declare(strict_types=1);
+
+namespace Gitlab\Model;
 
 use Gitlab\Client;
 
 /**
- * Class Commit
- *
  * @property-read string $id
  * @property-read string $short_id
  * @property-read string $title
@@ -14,18 +16,19 @@ use Gitlab\Client;
  * @property-read string $authored_date
  * @property-read string $committed_date
  * @property-read string $created_at
- * @property-read Commit[] $parents
+ * @property-read Commit[]|null $parents
  * @property-read Node[] $tree
- * @property-read User $committer
- * @property-read User $author
+ * @property-read User|null $committer
+ * @property-read User|null $author
  * @property-read Project $project
+ * @property-read array|null $stats
  */
 class Commit extends AbstractModel
 {
     /**
-     * @var array
+     * @var string[]
      */
-    protected static $properties = array(
+    protected static $properties = [
         'id',
         'short_id',
         'parents',
@@ -39,23 +42,25 @@ class Commit extends AbstractModel
         'authored_date',
         'committed_date',
         'created_at',
-        'project'
-    );
+        'project',
+        'stats',
+    ];
 
     /**
      * @param Client  $client
      * @param Project $project
      * @param array   $data
+     *
      * @return Commit
      */
     public static function fromArray(Client $client, Project $project, array $data)
     {
-        $commit = new static($project, $data['id'], $client);
+        $commit = new self($project, $data['id'], $client);
 
         if (isset($data['parents'])) {
-            $parents = array();
+            $parents = [];
             foreach ($data['parents'] as $parent) {
-                $parents[] = static::fromArray($client, $project, $parent);
+                $parents[] = self::fromArray($client, $project, $parent);
             }
 
             $data['parents'] = $parents;
@@ -73,9 +78,11 @@ class Commit extends AbstractModel
     }
 
     /**
-     * @param Project $project
-     * @param int $id
-     * @param Client  $client
+     * @param Project     $project
+     * @param int|null    $id
+     * @param Client|null $client
+     *
+     * @return void
      */
     public function __construct(Project $project, $id = null, Client $client = null)
     {

@@ -1,24 +1,47 @@
-<?php namespace Gitlab\Api;
+<?php
+
+declare(strict_types=1);
+
+namespace Gitlab\Api;
 
 class Milestones extends AbstractApi
 {
+    public const STATE_ACTIVE = 'active';
+
+    public const STATE_CLOSED = 'closed';
+
     /**
-     * @param int $project_id
-     * @param int $page
-     * @param int $per_page
+     * @param int|string $project_id
+     * @param array      $parameters {
+     *
+     *     @var int[]  $iids   return only the milestones having the given iids
+     *     @var string $state  return only active or closed milestones
+     *     @var string $search Return only milestones with a title or description matching the provided string.
+     * }
+     *
      * @return mixed
      */
-    public function all($project_id, $page = 1, $per_page = self::PER_PAGE)
+    public function all($project_id, array $parameters = [])
     {
-        return $this->get($this->getProjectPath($project_id, 'milestones'), array(
-            'page' => $page,
-            'per_page' => $per_page
-        ));
+        $resolver = $this->createOptionsResolver();
+        $resolver->setDefined('iids')
+            ->setAllowedTypes('iids', 'array')
+            ->setAllowedValues('iids', function (array $value) {
+                return count($value) == count(array_filter($value, 'is_int'));
+            })
+        ;
+        $resolver->setDefined('state')
+            ->setAllowedValues('state', [self::STATE_ACTIVE, self::STATE_CLOSED])
+        ;
+        $resolver->setDefined('search');
+
+        return $this->get($this->getProjectPath($project_id, 'milestones'), $resolver->resolve($parameters));
     }
 
     /**
-     * @param int $project_id
-     * @param int $milestone_id
+     * @param int|string $project_id
+     * @param int        $milestone_id
+     *
      * @return mixed
      */
     public function show($project_id, $milestone_id)
@@ -27,8 +50,9 @@ class Milestones extends AbstractApi
     }
 
     /**
-     * @param int $project_id
-     * @param array $params
+     * @param int|string $project_id
+     * @param array      $params
+     *
      * @return mixed
      */
     public function create($project_id, array $params)
@@ -37,9 +61,10 @@ class Milestones extends AbstractApi
     }
 
     /**
-     * @param int $project_id
-     * @param int $milestone_id
-     * @param array $params
+     * @param int|string $project_id
+     * @param int        $milestone_id
+     * @param array      $params
+     *
      * @return mixed
      */
     public function update($project_id, $milestone_id, array $params)
@@ -48,8 +73,20 @@ class Milestones extends AbstractApi
     }
 
     /**
-     * @param int $project_id
-     * @param int $milestone_id
+     * @param int|string $project_id
+     * @param int        $milestone_id
+     *
+     * @return mixed
+     */
+    public function remove($project_id, $milestone_id)
+    {
+        return $this->delete($this->getProjectPath($project_id, 'milestones/'.$this->encodePath($milestone_id)));
+    }
+
+    /**
+     * @param int|string $project_id
+     * @param int        $milestone_id
+     *
      * @return mixed
      */
     public function issues($project_id, $milestone_id)
